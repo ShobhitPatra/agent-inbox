@@ -16,7 +16,8 @@ Early showcase. Single-agent (n=1) approval inbox, built on
 
 This repo dev-links `@assistant-ui/react-ink` and `@assistant-ui/react-ink-markdown` from a local
 checkout of the assistant-ui monorepo (not the published versions), so the inbox and any upstream
-react-ink primitive can co-evolve in one edit loop. See `docs/` for the link setup and design.
+react-ink primitive can co-evolve in one edit loop. The links are `file:` tarballs packed from the
+monorepo build into a gitignored `.vendor/`.
 
 ```bash
 pnpm install
