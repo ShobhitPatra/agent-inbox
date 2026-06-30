@@ -7,9 +7,11 @@ export const StatusBar = ({ state }: { state: InboxState }) => {
   const agents = Object.keys(state.agents).length;
   return (
     <Box>
-      <Text dimColor>
-        {pending} pending · {agents} agent{agents === 1 ? "" : "s"}
+      <Text bold={pending > 0} color={pending > 0 ? "yellow" : undefined} dimColor={pending === 0}>
+        {pending} pending
       </Text>
+      <Text dimColor> · </Text>
+      <Text bold>{agents} agent{agents === 1 ? "" : "s"}</Text>
     </Box>
   );
 };
