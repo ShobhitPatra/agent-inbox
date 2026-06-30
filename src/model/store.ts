@@ -1,4 +1,4 @@
-import type { InboxState, RunEvent, Approval, Agent } from "./types.js";
+import type { InboxState, RunEvent, Approval, Agent, ContextPart } from "./types.js";
 
 export const emptyState = (): InboxState => ({ agents: {}, approvals: {}, order: [], runs: {} });
 
@@ -29,3 +29,11 @@ export const pendingApprovals = (s: InboxState): Approval[] =>
   s.order.map((id) => s.approvals[id]!).filter((a) => a.status === "pending");
 
 export const agentById = (s: InboxState, id: string): Agent | undefined => s.agents[id];
+
+export const fleet = (s: InboxState): Agent[] =>
+  Object.values(s.agents).sort((x, y) => x.id.localeCompare(y.id));
+
+export const agentRun = (s: InboxState, agentId: string): ContextPart[] => s.runs[agentId] ?? [];
+
+export const pendingForAgent = (s: InboxState, agentId: string): Approval[] =>
+  pendingApprovals(s).filter((a) => a.agentId === agentId);
