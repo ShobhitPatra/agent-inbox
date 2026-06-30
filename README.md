@@ -27,6 +27,37 @@ pnpm typecheck
 pnpm build
 ```
 
+## Real agent (BYOK)
+
+By default the inbox runs a scripted simulated source — no key needed, works offline.
+
+To run a live AI agent (any OpenAI-compatible provider), copy `.env.example` to `.env`, fill in your key, and run `pnpm dev` — the `.env` is auto-loaded (and gitignored, so the key is never committed):
+
+```bash
+cp .env.example .env   # then edit .env and set AGENT_INBOX_API_KEY
+pnpm dev
+```
+
+`.env`:
+
+```
+AGENT_INBOX_REAL=1
+AGENT_INBOX_BASE_URL=https://api.openai.com/v1
+AGENT_INBOX_API_KEY=sk-...
+AGENT_INBOX_MODEL=gpt-4o
+```
+
+Leave `AGENT_INBOX_REAL` unset (or remove `.env`) to run the offline simulated demo with no key.
+
+| Var | Purpose |
+|-----|---------|
+| `AGENT_INBOX_REAL` | Set to any non-empty value to use the real agent instead of the simulator |
+| `AGENT_INBOX_BASE_URL` | Base URL of an OpenAI-compatible chat completions endpoint |
+| `AGENT_INBOX_API_KEY` | API key for the provider |
+| `AGENT_INBOX_MODEL` | Model ID to use (e.g. `gpt-4o`, `claude-3-5-sonnet-20241022`) |
+
+The real agent edits the fixture files in `fixtures/sample-repo/` (three Express handlers that read `req.body` without validation). It proposes edits, a test run, and a PR — all gated on your approval.
+
 ## License
 
 MIT
