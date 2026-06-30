@@ -1,13 +1,13 @@
 import type { InboxState, RunEvent, Approval, Agent } from "./types.js";
 
-export const emptyState = (): InboxState => ({ agents: {}, approvals: {}, order: [] });
+export const emptyState = (): InboxState => ({ agents: {}, approvals: {}, order: [], runs: {} });
 
 export const reduce = (s: InboxState, e: RunEvent): InboxState => {
   switch (e.type) {
     case "agentStatusChanged":
       return { ...s, agents: { ...s.agents, [e.agent.id]: e.agent } };
     case "runUpdated":
-      return s;
+      return { ...s, runs: { ...s.runs, [e.agentId]: [...(s.runs[e.agentId] ?? []), ...e.context] } };
     case "approvalRequested": {
       const ap: Approval = { ...e.approval, status: e.approval.status ?? "pending" };
       return { ...s, approvals: { ...s.approvals, [ap.id]: ap }, order: [...s.order, ap.id] };
