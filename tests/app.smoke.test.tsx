@@ -13,7 +13,7 @@ it("mounts the shell without throwing", async () => {
 
 it("full storyboard end-to-end through App", async () => {
   const source = createSimulatedSource({ stepMs: 0 });
-  const { lastFrame, unmount } = render(<App source={source} />);
+  const { lastFrame, unmount } = render(<App source={source} initialMode="inbox" />);
 
   await vi.waitFor(
     () => expect(lastFrame()).toContain("3 pending"),
