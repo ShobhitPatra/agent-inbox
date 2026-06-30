@@ -1,6 +1,7 @@
 node_modules
 dist
 .vendor
+docs
 .agent-inbox
 *.log
 .DS_Store

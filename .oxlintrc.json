@@ -1,0 +1,19 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["typescript", "import", "oxc", "react"],
+  "categories": {
+    "correctness": "error",
+    "perf": "off",
+    "suspicious": "off",
+    "pedantic": "off",
+    "style": "off",
+    "restriction": "off",
+    "nursery": "off"
+  },
+  "rules": {
+    "no-explicit-any": "off",
+    "no-non-null-assertion": "off",
+    "typescript/no-unused-vars": ["warn", { "argsIgnorePattern": "^_", "varsIgnorePattern": "^_", "ignoreRestSiblings": true }]
+  },
+  "ignorePatterns": ["**/dist/**", "**/node_modules/**", ".vendor/**"]
+}
