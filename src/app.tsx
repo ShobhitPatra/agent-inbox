@@ -4,12 +4,15 @@ import { reduce, emptyState, pendingApprovals } from "./model/store.js";
 import type { RunEvent } from "./model/types.js";
 import type { AgentSource } from "./source/types.js";
 import { createSimulatedSource } from "./source/simulated.js";
+import { createRealSource } from "./source/real.js";
 import { InboxList } from "./ui/InboxList.js";
 import { StatusBar } from "./ui/StatusBar.js";
 import { ApprovalDetail } from "./ui/ApprovalDetail.js";
 
 export const App = ({ source: providedSource }: { source?: AgentSource } = {}) => {
-  const [source] = useState(() => providedSource ?? createSimulatedSource());
+  const [source] = useState(
+    () => providedSource ?? (process.env["AGENT_INBOX_REAL"] ? createRealSource() : createSimulatedSource()),
+  );
   const [state, dispatch] = useReducer(
     (s: ReturnType<typeof emptyState>, e: RunEvent) => reduce(s, e),
     undefined,

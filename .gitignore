@@ -2,6 +2,9 @@ node_modules
 dist
 .vendor
 docs
+.env
+.env.*
+!.env.example
 .agent-inbox
 *.log
 .DS_Store
