@@ -188,6 +188,19 @@ export const createRealSource = (): AgentSource => {
       return () => subs.delete(cb);
     },
     decide: (id, d) => decide(id, d),
+    steer: (targetId, text) => {
+      if (targetId !== AGENT.id) return;
+      emit({
+        type: "runUpdated",
+        agentId: AGENT.id,
+        context: [{ kind: "reasoning", text: `↳ steering: "${text}" — folding into next step` }],
+      });
+    },
+    cancel: (targetId) => {
+      if (targetId !== AGENT.id) return;
+      controller.abort();
+      emit({ type: "agentStatusChanged", agent: { ...AGENT, status: "cancelled" } });
+    },
     start: () => {
       void run();
     },

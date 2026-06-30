@@ -8,6 +8,8 @@ export type Decision = {
 export type AgentSource = {
   subscribe: (cb: (e: RunEvent) => void) => () => void;
   decide: (approvalId: string, decision: Decision) => void;
+  steer: (agentId: string, text: string) => void;
+  cancel: (agentId: string) => void;
   start: () => void;
   stop: () => void;
   dispose: () => void;
