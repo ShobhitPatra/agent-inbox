@@ -1,0 +1,6 @@
+node_modules
+dist
+.vendor
+.agent-inbox
+*.log
+.DS_Store
