@@ -175,6 +175,21 @@ export const createSimulatedSource = (opts: SimulatedOptions = {}): AgentSource 
         waiter.resolve(d);
       }
     },
+    steer: (targetId, text) => {
+      if (targetId !== agentId) return;
+      note(`↳ steering: "${text}" — folding into next step`);
+    },
+    cancel: (targetId) => {
+      if (targetId !== agentId) return;
+      stopped = true;
+      emit({ type: "agentStatusChanged", agent: statusAgent("cancelled") });
+      for (const [pid, waiter] of pendingWaiters) {
+        emit({ type: "approvalResolved", approvalId: pid, status: "denied" });
+        waiter.reject(DISPOSE_SENTINEL);
+      }
+      pendingWaiters.clear();
+      if (sleepCanceller) sleepCanceller();
+    },
     start: () => {
       void run();
     },
