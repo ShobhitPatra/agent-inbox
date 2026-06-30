@@ -1,5 +1,12 @@
-export type AgentStatus = "running" | "waiting" | "done" | "error";
-export type Agent = { id: string; name: string; task: string; status: AgentStatus };
+export type AgentStatus = "running" | "waiting" | "done" | "error" | "cancelled";
+export type Agent = {
+  id: string;
+  name: string;
+  task: string;
+  status: AgentStatus;
+  step?: { index: number; total?: number };
+  cost?: number;
+};
 
 export type Action =
   | { kind: "edit"; path: string; hunks: { oldString: string; newString: string }[] }
@@ -27,4 +34,5 @@ export type InboxState = {
   agents: Record<string, Agent>;
   approvals: Record<string, Approval>;
   order: string[];
+  runs: Record<string, ContextPart[]>;
 };
