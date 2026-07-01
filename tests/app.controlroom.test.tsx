@@ -80,7 +80,7 @@ it("steer through the App input path appends the echo to the agent transcript", 
   );
   await vi.waitFor(() => expect(lastFrame() ?? "").toContain("refactor"), { timeout: 3000 });
 
-  stdin.write("s");
+  stdin.write("\r");
   await vi.waitFor(() => expect(lastFrame() ?? "").toContain("steer>"), { timeout: 1000 });
 
   stdin.write("keep the public API stable");

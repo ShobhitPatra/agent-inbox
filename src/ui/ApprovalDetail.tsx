@@ -24,8 +24,5 @@ export const ApprovalDetail = ({
       <CommandPayload action={approval.action} edited={editedCommand} />
     )}
     {approval.action.kind === "send" && <SendPayload action={approval.action} />}
-    <Box marginTop={1}>
-      <Text dimColor>a approve · e edit · d deny · esc back</Text>
-    </Box>
   </Box>
 );

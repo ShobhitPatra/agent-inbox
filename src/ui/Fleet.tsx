@@ -1,6 +1,7 @@
 import { Box, Text } from "ink";
 import type { InboxState } from "../model/types.js";
 import { fleet, pendingForAgent } from "../model/store.js";
+import { KeyHints } from "./KeyHint.js";
 
 const PALETTE = ["cyan", "green", "magenta", "yellow"] as const;
 
@@ -36,13 +37,6 @@ const FleetHeader = () => (
     <Box>
       <Text dimColor bold>cost</Text>
     </Box>
-  </Box>
-);
-
-const KeyHint = ({ keyLabel, action }: { keyLabel: string; action: string }) => (
-  <Box>
-    <Text color="cyan" bold>{keyLabel}</Text>
-    <Text dimColor> {action}</Text>
   </Box>
 );
 
@@ -98,13 +92,14 @@ export const Fleet = ({
         </Box>
       ) : null}
       <Box marginTop={1}>
-        <KeyHint keyLabel="enter" action="open" />
-        <Text dimColor> · </Text>
-        <KeyHint keyLabel="c" action="cancel" />
-        <Text dimColor> · </Text>
-        <KeyHint keyLabel="i" action="inbox" />
-        <Text dimColor> · </Text>
-        <KeyHint keyLabel="q" action="quit" />
+        <KeyHints
+          hints={[
+            { keyLabel: "enter", action: "open" },
+            { keyLabel: "c", action: "cancel" },
+            { keyLabel: "i", action: "inbox" },
+            { keyLabel: "q", action: "quit" },
+          ]}
+        />
       </Box>
     </Box>
   );
