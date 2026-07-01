@@ -2,14 +2,7 @@ import { Box, Text } from "ink";
 import type { InboxState, Approval } from "../model/types.js";
 import { pendingApprovals } from "../model/store.js";
 import { KeyHints } from "./KeyHint.js";
-
-const PALETTE = ["cyan", "green", "magenta", "yellow"] as const;
-
-const agentColor = (agentId: string): (typeof PALETTE)[number] => {
-  let h = 0;
-  for (const c of agentId) h = (h + c.charCodeAt(0)) % PALETTE.length;
-  return PALETTE[h]!;
-};
+import { agentColor } from "./palette.js";
 
 const summary = (a: Approval): string => {
   if (a.action.kind === "edit") {

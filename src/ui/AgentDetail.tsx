@@ -7,9 +7,7 @@ import { ActionBar } from "./ActionBar.js";
 import type { ActionKind } from "./ActionBar.js";
 import { LastAction } from "./LastAction.js";
 import type { LastActionState } from "./LastAction.js";
-
-const stepLabel = (step?: { index: number; total?: number }): string =>
-  step ? `step ${step.index}/${step.total ?? "?"}` : "";
+import { stepLabel } from "./palette.js";
 
 export const AgentDetail = ({
   state,
