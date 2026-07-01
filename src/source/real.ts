@@ -206,6 +206,7 @@ export const createRealSource = (): AgentSource => {
     },
     stop: () => {
       controller.abort();
+      disposeWaiters();
     },
     dispose: () => {
       disposed = true;

@@ -195,6 +195,11 @@ export const createSimulatedSource = (opts: SimulatedOptions = {}): AgentSource 
     },
     stop: () => {
       stopped = true;
+      if (sleepCanceller) sleepCanceller();
+      for (const [, waiter] of pendingWaiters) {
+        waiter.reject(DISPOSE_SENTINEL);
+      }
+      pendingWaiters.clear();
     },
     dispose: () => {
       disposed = true;
