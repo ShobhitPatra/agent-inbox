@@ -4,17 +4,7 @@ import { fleet, pendingForAgent } from "../model/store.js";
 import { KeyHints } from "./KeyHint.js";
 import { LastAction } from "./LastAction.js";
 import type { LastActionState } from "./LastAction.js";
-
-const PALETTE = ["cyan", "green", "magenta", "yellow"] as const;
-
-const agentColor = (agentId: string): (typeof PALETTE)[number] => {
-  let h = 0;
-  for (const c of agentId) h = (h + c.charCodeAt(0)) % PALETTE.length;
-  return PALETTE[h]!;
-};
-
-const stepLabel = (step?: { index: number; total?: number }): string =>
-  step ? `step ${step.index}/${step.total ?? "?"}` : "";
+import { agentColor, stepLabel } from "./palette.js";
 
 const NAME_WIDTH = 10;
 const STATUS_WIDTH = 12;
