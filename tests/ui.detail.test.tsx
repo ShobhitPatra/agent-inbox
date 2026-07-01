@@ -70,6 +70,14 @@ it("ApprovalDetail send: contains the target and summary", () => {
   unmount();
 });
 
+it("ApprovalDetail does not render a key-hint footer", () => {
+  const { lastFrame, unmount } = render(
+    <ApprovalDetail approval={editApproval} agentName="demo-agent" />,
+  );
+  expect(lastFrame() ?? "").not.toContain("esc back");
+  unmount();
+});
+
 it("RunContext tool part: frame contains the tool name", () => {
   const { lastFrame, unmount } = render(
     <RunContext

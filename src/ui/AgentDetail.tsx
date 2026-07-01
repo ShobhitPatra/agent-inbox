@@ -3,6 +3,8 @@ import type { InboxState } from "../model/types.js";
 import { agentRun, pendingForAgent } from "../model/store.js";
 import { RunContext } from "./RunContext.js";
 import { ApprovalDetail } from "./ApprovalDetail.js";
+import { ActionBar } from "./ActionBar.js";
+import type { ActionKind } from "./ActionBar.js";
 
 const stepLabel = (step?: { index: number; total?: number }): string =>
   step ? `step ${step.index}/${step.total ?? "?"}` : "";
@@ -14,6 +16,7 @@ export const AgentDetail = ({
   steerText,
   editedCommand,
   armed,
+  focusedAction,
 }: {
   state: InboxState;
   agentId: string;
@@ -21,17 +24,30 @@ export const AgentDetail = ({
   steerText: string | null;
   editedCommand?: string;
   armed: boolean;
+  focusedAction: number;
 }) => {
   const agent = state.agents[agentId];
   const transcript = agentRun(state, agentId);
   const pending = pendingForAgent(state, agentId);
   const safeCursor = Math.min(cursor, Math.max(pending.length - 1, 0));
   const focused = pending[safeCursor];
+
+  const isActive = agent?.status !== "done" && agent?.status !== "cancelled";
+  const actions: ActionKind[] = [];
+  if (focused) {
+    actions.push("approve");
+    if (focused.action.kind === "command") actions.push("edit");
+    actions.push("deny");
+  }
+  if (isActive) actions.push("steer", "cancel");
+
+  const header = focused
+    ? `${agent?.name ?? agentId} · ${focused.action.kind} · ${safeCursor + 1}/${pending.length}`
+    : `${agent?.name ?? agentId} · ${agent?.status ?? "unknown"} · ${stepLabel(agent?.step)}`;
+
   return (
     <Box flexDirection="column">
-      <Text bold>
-        {agent?.name ?? agentId} · {agent?.status ?? "unknown"} · {stepLabel(agent?.step)}
-      </Text>
+      <Text bold>{header}</Text>
       {transcript.length > 0 ? (
         <Box marginTop={1}>
           <RunContext context={transcript} />
@@ -52,14 +68,14 @@ export const AgentDetail = ({
           </Text>
         </Box>
       ) : null}
-      {armed ? (
-        <Box marginTop={1}>
-          <Text color="red">press c again to cancel {agent?.name ?? agentId}</Text>
-        </Box>
+      {actions.length > 0 ? (
+        <ActionBar
+          actions={actions}
+          focusedIndex={focusedAction}
+          armed={armed}
+          agentName={agent?.name ?? agentId}
+        />
       ) : null}
-      <Box marginTop={1}>
-        <Text dimColor>a approve · e edit · d deny · s steer · c cancel · esc back</Text>
-      </Box>
     </Box>
   );
 };

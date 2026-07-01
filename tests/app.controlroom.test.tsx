@@ -80,7 +80,7 @@ it("steer through the App input path appends the echo to the agent transcript", 
   );
   await vi.waitFor(() => expect(lastFrame() ?? "").toContain("refactor"), { timeout: 3000 });
 
-  stdin.write("s");
+  stdin.write("\r");
   await vi.waitFor(() => expect(lastFrame() ?? "").toContain("steer>"), { timeout: 1000 });
 
   stdin.write("keep the public API stable");
@@ -88,6 +88,92 @@ it("steer through the App input path appends the echo to the agent transcript", 
 
   stdin.write("\r");
   await vi.waitFor(() => expect(lastFrame() ?? "").toContain("keep the public API stable"), { timeout: 3000 });
+
+  unmount();
+  source.dispose();
+});
+
+const makeInboxSource = (onDecide?: (id: string) => void): AgentSource => {
+  const subs = new Set<(e: RunEvent) => void>();
+  const emit = (e: RunEvent) => subs.forEach((cb) => cb(e));
+  return {
+    subscribe: (cb) => { subs.add(cb); return () => subs.delete(cb); },
+    decide: (id) => {
+      onDecide?.(id);
+      emit({ type: "approvalResolved", approvalId: id, status: "approved" });
+    },
+    steer: () => {},
+    cancel: () => {},
+    start: () => {
+      emit({ type: "agentStatusChanged", agent: { id: "bot", name: "bot", task: "t", status: "waiting" } });
+      emit({ type: "approvalRequested", approval: { id: "ap-1", agentId: "bot", createdAt: 0, action: { kind: "command", command: "cmd-alpha", cwd: "." }, context: [] } });
+      emit({ type: "approvalRequested", approval: { id: "ap-2", agentId: "bot", createdAt: 1, action: { kind: "command", command: "cmd-beta", cwd: "." }, context: [] } });
+    },
+    stop: () => {},
+    dispose: () => {},
+  };
+};
+
+it("inbox detail: ↓/↑ navigates between pending approvals", async () => {
+  const source = makeInboxSource();
+  const { lastFrame, stdin, unmount } = render(<App source={source} initialMode="inbox" />);
+
+  await vi.waitFor(() => expect(lastFrame()).toContain("cmd-alpha"), { timeout: 3000 });
+
+  stdin.write("\r");
+  await vi.waitFor(() => expect(lastFrame()).toContain("$ cmd-alpha"), { timeout: 1000 });
+
+  stdin.write("\x1B[B");
+  await vi.waitFor(() => expect(lastFrame()).toContain("$ cmd-beta"), { timeout: 1000 });
+
+  stdin.write("\x1B[A");
+  await vi.waitFor(() => expect(lastFrame()).toContain("$ cmd-alpha"), { timeout: 1000 });
+
+  unmount();
+  source.dispose();
+});
+
+it("inbox detail: approve auto-advances to next pending approval", async () => {
+  const source = makeInboxSource();
+  const { lastFrame, stdin, unmount } = render(<App source={source} initialMode="inbox" />);
+
+  await vi.waitFor(() => expect(lastFrame()).toContain("cmd-alpha"), { timeout: 3000 });
+
+  stdin.write("\r");
+  await vi.waitFor(() => expect(lastFrame()).toContain("$ cmd-alpha"), { timeout: 1000 });
+
+  stdin.write("\r");
+  await vi.waitFor(() => expect(lastFrame()).toContain("$ cmd-beta"), { timeout: 1000 });
+
+  unmount();
+  source.dispose();
+});
+
+it("inbox detail: approve last pending falls back to list view", async () => {
+  const subs = new Set<(e: RunEvent) => void>();
+  const emit = (e: RunEvent) => subs.forEach((cb) => cb(e));
+  const source: AgentSource = {
+    subscribe: (cb) => { subs.add(cb); return () => subs.delete(cb); },
+    decide: (id) => { emit({ type: "approvalResolved", approvalId: id, status: "approved" }); },
+    steer: () => {},
+    cancel: () => {},
+    start: () => {
+      emit({ type: "agentStatusChanged", agent: { id: "bot", name: "bot", task: "t", status: "waiting" } });
+      emit({ type: "approvalRequested", approval: { id: "ap-only", agentId: "bot", createdAt: 0, action: { kind: "command", command: "solo-cmd", cwd: "." }, context: [] } });
+    },
+    stop: () => {},
+    dispose: () => {},
+  };
+
+  const { lastFrame, stdin, unmount } = render(<App source={source} initialMode="inbox" />);
+
+  await vi.waitFor(() => expect(lastFrame()).toContain("solo-cmd"), { timeout: 3000 });
+
+  stdin.write("\r");
+  await vi.waitFor(() => expect(lastFrame()).toContain("$ solo-cmd"), { timeout: 1000 });
+
+  stdin.write("\r");
+  await vi.waitFor(() => expect(lastFrame()).not.toContain("$ solo-cmd"), { timeout: 1000 });
 
   unmount();
   source.dispose();
