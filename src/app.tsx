@@ -56,6 +56,17 @@ export const App = ({
 
   const pending = pendingApprovals(state);
   const inboxCursor = Math.min(cursor, Math.max(pending.length - 1, 0));
+  const open = openId ? state.approvals[openId] : undefined;
+  const inboxActions: ActionKind[] = (() => {
+    if (!open) return [];
+    const ag = state.agents[open.agentId];
+    const isActive = ag?.status !== "done" && ag?.status !== "cancelled";
+    const a: ActionKind[] = ["approve"];
+    if (open.action.kind === "command") a.push("edit");
+    a.push("deny");
+    if (isActive) a.push("steer", "cancel");
+    return a;
+  })();
 
   useInput((input, key) => {
     const textActive = editing !== null || steerText !== null;
@@ -182,20 +193,31 @@ export const App = ({
         return;
       }
 
-      const open = state.approvals[openId];
       if (!open) return;
 
       const inboxAgentId = open.agentId;
-      const inboxAgent = state.agents[inboxAgentId];
-      const isActive = inboxAgent?.status !== "done" && inboxAgent?.status !== "cancelled";
-
-      const inboxActions: ActionKind[] = ["approve"];
-      if (open.action.kind === "command") inboxActions.push("edit");
-      inboxActions.push("deny");
-      if (isActive) inboxActions.push("steer", "cancel");
-
       const focusedActionClamped = Math.min(focusedAction, Math.max(inboxActions.length - 1, 0));
 
+      if (key.upArrow || input === "k") {
+        const idx = pending.findIndex((a) => a.id === openId);
+        const nextIdx = Math.max(idx - 1, 0);
+        if (nextIdx !== idx) {
+          setOpenId(pending[nextIdx]!.id);
+          setCursor(nextIdx);
+          setFocusedAction(0);
+        }
+        return;
+      }
+      if (key.downArrow || input === "j") {
+        const idx = pending.findIndex((a) => a.id === openId);
+        const nextIdx = Math.min(idx + 1, pending.length - 1);
+        if (nextIdx !== idx) {
+          setOpenId(pending[nextIdx]!.id);
+          setCursor(nextIdx);
+          setFocusedAction(0);
+        }
+        return;
+      }
       if (key.leftArrow) {
         setFocusedAction(Math.max(focusedActionClamped - 1, 0));
         setArmedCancel(null);
@@ -208,13 +230,12 @@ export const App = ({
       }
       if (key.return) {
         const action = inboxActions[focusedActionClamped];
-        if (action === "approve") {
-          source.decide(open.id, { action: "approve" });
-          setOpenId(null);
-          setFocusedAction(0);
-        } else if (action === "deny") {
-          source.decide(open.id, { action: "deny" });
-          setOpenId(null);
+        if (action === "approve" || action === "deny") {
+          source.decide(open.id, { action });
+          const idx = pending.findIndex((a) => a.id === open.id);
+          const next = pending[idx + 1] ?? null;
+          setOpenId(next?.id ?? null);
+          if (next) setCursor(idx);
           setFocusedAction(0);
         } else if (action === "edit" && open.action.kind === "command") {
           setEditing(open.action.command);
@@ -299,18 +320,7 @@ export const App = ({
     }
   });
 
-  const open = openId ? state.approvals[openId] : undefined;
   const editedCommand = editingId && editing !== null ? editing : undefined;
-
-  const inboxActions: ActionKind[] = open ? (() => {
-    const a: ActionKind[] = ["approve"];
-    if (open.action.kind === "command") a.push("edit");
-    a.push("deny");
-    const inboxAgent = state.agents[open.agentId];
-    const isActive = inboxAgent?.status !== "done" && inboxAgent?.status !== "cancelled";
-    if (isActive) a.push("steer", "cancel");
-    return a;
-  })() : [];
 
   return (
     <Box flexDirection="column" padding={1}>
