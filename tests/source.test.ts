@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { createSimulatedSource } from "../src/source/simulated.js";
+import { createFleetSource } from "../src/source/composite.js";
 import type { RunEvent } from "../src/model/types.js";
 
 describe("simulated source", () => {
@@ -97,5 +98,92 @@ describe("simulated source", () => {
     await new Promise((r) => setTimeout(r, 20));
 
     expect(events.length).toBe(countBeforeDispose);
+  });
+});
+
+describe("stop() lifecycle", () => {
+  it("stop() while waiting for a batch decision: decide() after stop() emits no further events", async () => {
+    const src = createSimulatedSource({ stepMs: 0 });
+    const events: RunEvent[] = [];
+    src.subscribe((e) => events.push(e));
+    src.start();
+
+    await vi.waitFor(() => {
+      expect(events.filter((e) => e.type === "approvalRequested").length).toBeGreaterThanOrEqual(3);
+    });
+
+    src.stop();
+    const countAfterStop = events.length;
+
+    src.decide("ap-edit-1", { action: "approve" });
+    src.decide("ap-edit-2", { action: "approve" });
+    src.decide("ap-edit-3", { action: "approve" });
+
+    await new Promise((r) => setTimeout(r, 20));
+
+    expect(events.length).toBe(countAfterStop);
+    src.dispose();
+  });
+
+  it("fleet stop() while all 3 agents have pending decisions: decide() after stop() emits nothing further", async () => {
+    const fleet = createFleetSource({ stepMs: 0 });
+    const events: RunEvent[] = [];
+    fleet.subscribe((e) => events.push(e));
+    fleet.start();
+
+    await vi.waitFor(() => {
+      expect(events.filter((e) => e.type === "approvalRequested").length).toBeGreaterThanOrEqual(9);
+    });
+
+    fleet.stop();
+    const countAfterStop = events.length;
+
+    fleet.decide("coder-ap-edit-1", { action: "approve" });
+    fleet.decide("coder-ap-edit-2", { action: "approve" });
+    fleet.decide("coder-ap-edit-3", { action: "approve" });
+    fleet.decide("refactor-ap-edit-1", { action: "approve" });
+    fleet.decide("refactor-ap-edit-2", { action: "approve" });
+    fleet.decide("refactor-ap-edit-3", { action: "approve" });
+    fleet.decide("ops-ap-cmd-1", { action: "approve" });
+    fleet.decide("ops-ap-cmd-2", { action: "approve" });
+    fleet.decide("ops-ap-send-1", { action: "approve" });
+
+    await new Promise((r) => setTimeout(r, 20));
+
+    expect(events.length).toBe(countAfterStop);
+    fleet.dispose();
+  });
+
+  it("two concurrent sources: stop() on one leaves the other's pending decisions intact and processable", async () => {
+    const a = createSimulatedSource({ stepMs: 0, agentId: "a", idPrefix: "a-" });
+    const b = createSimulatedSource({ stepMs: 0, agentId: "b", idPrefix: "b-" });
+    const aEvents: RunEvent[] = [];
+    const bEvents: RunEvent[] = [];
+    a.subscribe((e) => aEvents.push(e));
+    b.subscribe((e) => bEvents.push(e));
+    a.start();
+    b.start();
+
+    await vi.waitFor(() => {
+      expect(aEvents.filter((e) => e.type === "approvalRequested").length).toBeGreaterThanOrEqual(3);
+      expect(bEvents.filter((e) => e.type === "approvalRequested").length).toBeGreaterThanOrEqual(3);
+    });
+
+    a.stop();
+    const aCountAfterStop = aEvents.length;
+
+    b.decide("b-ap-edit-1", { action: "approve" });
+    b.decide("b-ap-edit-2", { action: "approve" });
+    b.decide("b-ap-edit-3", { action: "approve" });
+
+    await vi.waitFor(() => {
+      const resolved = bEvents.filter((e) => e.type === "approvalResolved");
+      expect(resolved.length).toBe(3);
+    });
+
+    expect(aEvents.length).toBe(aCountAfterStop);
+
+    a.dispose();
+    b.dispose();
   });
 });
