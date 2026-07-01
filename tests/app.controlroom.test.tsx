@@ -179,6 +179,36 @@ it("inbox detail: approve last pending falls back to list view", async () => {
   source.dispose();
 });
 
+it("fleet mode renders a Fleet heading", async () => {
+  const source = makeInboxSource();
+  const { lastFrame, unmount } = render(<App source={source} initialMode="fleet" />);
+  await vi.waitFor(() => expect(lastFrame()).toContain("bot"), { timeout: 3000 });
+  expect(lastFrame()).toContain("Fleet");
+  unmount();
+  source.dispose();
+});
+
+it("inbox mode renders an Inbox heading", async () => {
+  const source = makeInboxSource();
+  const { lastFrame, unmount } = render(<App source={source} initialMode="inbox" />);
+  await vi.waitFor(() => expect(lastFrame()).toContain("cmd-alpha"), { timeout: 3000 });
+  expect(lastFrame()).toContain("Inbox");
+  unmount();
+  source.dispose();
+});
+
+it("esc on inbox list returns to fleet mode", async () => {
+  const source = makeInboxSource();
+  const { lastFrame, stdin, unmount } = render(<App source={source} initialMode="inbox" />);
+  await vi.waitFor(() => expect(lastFrame()).toContain("cmd-alpha"), { timeout: 3000 });
+
+  stdin.write("\x1B");
+  await vi.waitFor(() => expect(lastFrame()).toContain("Fleet"), { timeout: 1000 });
+
+  unmount();
+  source.dispose();
+});
+
 it("inbox detail: last-action line shows approved · target after approve", async () => {
   const source = makeInboxSource();
   const { lastFrame, stdin, unmount } = render(<App source={source} initialMode="inbox" />);

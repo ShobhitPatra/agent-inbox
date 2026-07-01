@@ -76,3 +76,12 @@ it("StatusBar renders pending count and agent count correctly", () => {
   expect(frame).toContain("1 agent");
   unmount();
 });
+
+it("InboxList shows esc-back hint when items are pending", () => {
+  const state = buildState();
+  const { lastFrame, unmount } = render(<InboxList state={state} cursor={0} />);
+  const frame = lastFrame() ?? "";
+  expect(frame).toContain("esc");
+  expect(frame).toContain("back");
+  unmount();
+});
