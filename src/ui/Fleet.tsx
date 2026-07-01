@@ -2,6 +2,8 @@ import { Box, Text } from "ink";
 import type { InboxState } from "../model/types.js";
 import { fleet, pendingForAgent } from "../model/store.js";
 import { KeyHints } from "./KeyHint.js";
+import { LastAction } from "./LastAction.js";
+import type { LastActionState } from "./LastAction.js";
 
 const PALETTE = ["cyan", "green", "magenta", "yellow"] as const;
 
@@ -44,10 +46,12 @@ export const Fleet = ({
   state,
   cursor,
   armedCancel,
+  lastAction = null,
 }: {
   state: InboxState;
   cursor: number;
   armedCancel: string | null;
+  lastAction?: LastActionState | null;
 }) => {
   const agents = fleet(state);
   if (agents.length === 0) {
@@ -91,6 +95,7 @@ export const Fleet = ({
           <Text color="red">press c again to cancel {state.agents[armedCancel]?.name ?? armedCancel}</Text>
         </Box>
       ) : null}
+      <LastAction lastAction={lastAction} />
       <Box marginTop={1}>
         <KeyHints
           hints={[

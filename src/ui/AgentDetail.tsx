@@ -5,6 +5,8 @@ import { RunContext } from "./RunContext.js";
 import { ApprovalDetail } from "./ApprovalDetail.js";
 import { ActionBar } from "./ActionBar.js";
 import type { ActionKind } from "./ActionBar.js";
+import { LastAction } from "./LastAction.js";
+import type { LastActionState } from "./LastAction.js";
 
 const stepLabel = (step?: { index: number; total?: number }): string =>
   step ? `step ${step.index}/${step.total ?? "?"}` : "";
@@ -17,6 +19,7 @@ export const AgentDetail = ({
   editedCommand,
   armed,
   focusedAction,
+  lastAction = null,
 }: {
   state: InboxState;
   agentId: string;
@@ -25,6 +28,7 @@ export const AgentDetail = ({
   editedCommand?: string;
   armed: boolean;
   focusedAction: number;
+  lastAction?: LastActionState | null;
 }) => {
   const agent = state.agents[agentId];
   const transcript = agentRun(state, agentId);
@@ -68,6 +72,7 @@ export const AgentDetail = ({
           </Text>
         </Box>
       ) : null}
+      <LastAction lastAction={lastAction} />
       {actions.length > 0 ? (
         <ActionBar
           actions={actions}
