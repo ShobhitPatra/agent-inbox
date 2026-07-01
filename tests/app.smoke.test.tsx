@@ -1,6 +1,5 @@
 import { it, expect, vi } from "vitest";
 import { render } from "ink-testing-library";
-import React from "react";
 import { App } from "../src/app.js";
 import { createSimulatedSource } from "../src/source/simulated.js";
 
