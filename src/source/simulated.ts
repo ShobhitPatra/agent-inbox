@@ -124,15 +124,17 @@ export const createSimulatedSource = (opts: SimulatedOptions = {}): AgentSource 
 
       for (const text of script.leadingNotes ?? []) {
         if (stopped) return;
+        advance();
+        emit({ type: "agentStatusChanged", agent: statusAgent("running") });
         note(text);
         await sleep(stepMs);
       }
 
       for (const wave of script.waves) {
         if (stopped) return;
+        advance();
+        emit({ type: "agentStatusChanged", agent: statusAgent("running") });
         if (wave.note) {
-          advance();
-          emit({ type: "agentStatusChanged", agent: statusAgent("running") });
           note(wave.note);
           await sleep(stepMs);
         }
