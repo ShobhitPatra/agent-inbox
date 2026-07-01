@@ -1,62 +1,61 @@
 # agent-inbox
 
-**kubectl for AI agents.** A terminal app where autonomous AI agents queue the actions they want
-to take (edit / command / send) and a human clears that queue — approve, edit, or deny — with the
-agent's reasoning rendered as context.
+"kubectl for AI agents": a terminal control room where a fleet of autonomous agents queue the actions they want to take (edit / command / send) and a human observes, approves, edits, steers, or cancels. The run-time oversight surface, riding on top of whatever runs the agents.
 
-It is the run-time control client for agents: observe what they want to do, and steer it. It rides
-on top of whatever *runs* the agents (a local demo agent today), not the orchestrator itself.
+## What you get
 
-## Status
+Three views, switchable at any time.
 
-Early showcase. Single-agent (n=1) approval inbox, built on
-[`@assistant-ui/react-ink`](https://github.com/assistant-ui/assistant-ui).
+**Fleet** shows every agent at a glance: name, status, current step, pending action count, and cost. Navigate the list and drill into any agent or cancel it.
 
-## Develop
+**Inbox** is the cross-agent approval queue. Every pending action from every agent lands here in one list. Open an action to read the agent's reasoning, then approve, deny, edit the command string, steer the agent onto a new direction, or cancel the whole agent.
 
-This repo dev-links `@assistant-ui/react-ink` and `@assistant-ui/react-ink-markdown` from a local
-checkout of the assistant-ui monorepo (not the published versions), so the inbox and any upstream
-react-ink primitive can co-evolve in one edit loop. The links are `file:` tarballs packed from the
-monorepo build into a gitignored `.vendor/`.
+**Agent detail** shows a single agent's reasoning transcript alongside its focused pending action, with the same approve / deny / edit / steer / cancel bar. Use it when you want to stay focused on one agent rather than triaging the cross-agent queue.
+
+## Run it
 
 ```bash
 pnpm install
-pnpm dev        # run the inbox
-pnpm test       # unit tests (read model, source, diff helper)
-pnpm typecheck
-pnpm build
-```
-
-## Real agent (BYOK)
-
-By default the inbox runs a scripted simulated source — no key needed, works offline.
-
-To run a live AI agent (any OpenAI-compatible provider), copy `.env.example` to `.env`, fill in your key, and run `pnpm dev` — the `.env` is auto-loaded (and gitignored, so the key is never committed):
-
-```bash
-cp .env.example .env   # then edit .env and set AGENT_INBOX_API_KEY
 pnpm dev
 ```
 
-`.env`:
+Out of the box `pnpm dev` runs a scripted three-agent demo (coder / refactor / ops) with no API key and no network required. The app needs a real terminal (TTY) and does not render correctly in a pipe or dumb terminal. On-screen footers show the keys for the current view.
 
+## Real agent (BYOK)
+
+By default the inbox runs the offline scripted demo. To connect a live agent, copy `.env.example` to `.env`, fill in your credentials, and run `pnpm dev`. The `.env` is gitignored and auto-loaded.
+
+```bash
+cp .env.example .env   # edit .env: set AGENT_INBOX_API_KEY and keep AGENT_INBOX_REAL=1
+pnpm dev
 ```
+
+```env
 AGENT_INBOX_REAL=1
 AGENT_INBOX_BASE_URL=https://api.openai.com/v1
 AGENT_INBOX_API_KEY=sk-...
 AGENT_INBOX_MODEL=gpt-4o
 ```
 
-Leave `AGENT_INBOX_REAL` unset (or remove `.env`) to run the offline simulated demo with no key.
-
-| Var | Purpose |
-|-----|---------|
-| `AGENT_INBOX_REAL` | Set to any non-empty value to use the real agent instead of the simulator |
+| Variable | Purpose |
+|----------|---------|
+| `AGENT_INBOX_REAL` | Set to any non-empty value to use the real agent instead of the demo |
 | `AGENT_INBOX_BASE_URL` | Base URL of an OpenAI-compatible chat completions endpoint |
-| `AGENT_INBOX_API_KEY` | API key for the provider |
-| `AGENT_INBOX_MODEL` | Model ID to use (e.g. `gpt-4o`, `claude-3-5-sonnet-20241022`) |
+| `AGENT_INBOX_API_KEY` | API key for that endpoint |
+| `AGENT_INBOX_MODEL` | Model ID (e.g. `gpt-4o`, or your provider's model id) |
 
-The real agent edits the fixture files in `fixtures/sample-repo/` (three Express handlers that read `req.body` without validation). It proposes edits, a test run, and a PR — all gated on your approval.
+The real agent targets the fixture Express handlers in `fixtures/sample-repo/` and proposes edits, a test run, and a PR, all gated on your approval. This mode is early: it builds and the approval flow works, but it is not yet hardened for production use.
+
+## Develop
+
+This repo dev-links `@assistant-ui/react-ink` and `@assistant-ui/react-ink-markdown` from a local monorepo build via `file:` tarballs in a gitignored `.vendor/` directory, so the inbox and any upstream react-ink primitive can co-evolve in one edit loop.
+
+```bash
+pnpm test       # vitest unit tests
+pnpm typecheck
+pnpm lint
+pnpm build
+```
 
 ## License
 
