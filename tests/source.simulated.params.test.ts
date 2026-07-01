@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { createSimulatedSource } from "../src/source/simulated.js";
+import { createFleetSource } from "../src/source/composite.js";
 import type { RunEvent } from "../src/model/types.js";
 
 const requestedIds = (events: RunEvent[]) =>
@@ -71,4 +72,27 @@ describe("parameterized simulated source", () => {
     expect(notesBeforeWaiting).toBeGreaterThanOrEqual(2);
     src.dispose();
   });
+});
+
+it("first-batch waiting status carries step >= 1 and cost > 0 for all fleet agents", async () => {
+  type Status = Extract<RunEvent, { type: "agentStatusChanged" }>;
+  const src = createFleetSource({ stepMs: 0 });
+  const events: RunEvent[] = [];
+  src.subscribe((e) => events.push(e));
+  src.start();
+  await vi.waitFor(() => {
+    const statuses = events.filter((e) => e.type === "agentStatusChanged") as Status[];
+    const firstWaitingByAgent = new Map<string, Status>();
+    for (const s of statuses) {
+      if (s.agent.status === "waiting" && !firstWaitingByAgent.has(s.agent.id)) {
+        firstWaitingByAgent.set(s.agent.id, s);
+      }
+    }
+    expect(firstWaitingByAgent.size).toBe(3);
+    for (const [, s] of firstWaitingByAgent) {
+      expect(s.agent.step?.index ?? 0).toBeGreaterThanOrEqual(1);
+      expect(s.agent.cost ?? 0).toBeGreaterThan(0);
+    }
+  });
+  src.dispose();
 });

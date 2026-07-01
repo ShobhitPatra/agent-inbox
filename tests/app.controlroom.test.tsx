@@ -32,7 +32,7 @@ it("n=3 fleet storyboard: agents appear, one finishes, one cancels, one is steer
   await vi.waitFor(
     () => {
       const coderLine = lineFor(lastFrame() ?? "", "coder");
-      expect(coderLine).toContain("step 2");
+      expect(coderLine).toContain("step 4");
       expect(coderLine).toContain("1 pending");
     },
     { timeout: 3000 },
