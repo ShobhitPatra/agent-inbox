@@ -178,3 +178,26 @@ it("inbox detail: approve last pending falls back to list view", async () => {
   unmount();
   source.dispose();
 });
+
+it("inbox detail: last-action line shows approved · target after approve", async () => {
+  const source = makeInboxSource();
+  const { lastFrame, stdin, unmount } = render(<App source={source} initialMode="inbox" />);
+
+  await vi.waitFor(() => expect(lastFrame()).toContain("cmd-alpha"), { timeout: 3000 });
+
+  stdin.write("\r");
+  await vi.waitFor(() => expect(lastFrame()).toContain("$ cmd-alpha"), { timeout: 1000 });
+
+  stdin.write("\r");
+  await vi.waitFor(
+    () => {
+      const frame = lastFrame() ?? "";
+      expect(frame).toContain("approved");
+      expect(frame).toContain("cmd-alpha");
+    },
+    { timeout: 1000 },
+  );
+
+  unmount();
+  source.dispose();
+});

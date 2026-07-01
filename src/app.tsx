@@ -1,7 +1,7 @@
 import { useEffect, useReducer, useState } from "react";
 import { Box, Text, useInput, useApp } from "ink";
 import { reduce, emptyState, pendingApprovals, fleet, pendingForAgent } from "./model/store.js";
-import type { RunEvent } from "./model/types.js";
+import type { RunEvent, Action } from "./model/types.js";
 import type { AgentSource } from "./source/types.js";
 import { createFleetSource } from "./source/composite.js";
 import { createRealSource } from "./source/real.js";
@@ -12,6 +12,14 @@ import { StatusBar } from "./ui/StatusBar.js";
 import { ApprovalDetail } from "./ui/ApprovalDetail.js";
 import { ActionBar } from "./ui/ActionBar.js";
 import type { ActionKind } from "./ui/ActionBar.js";
+import { LastAction } from "./ui/LastAction.js";
+import type { LastActionState } from "./ui/LastAction.js";
+
+const approvalLabel = (action: Action): string => {
+  if (action.kind === "edit") return action.path;
+  if (action.kind === "command") return action.command;
+  return action.target;
+};
 
 export type Mode = "fleet" | "inbox" | "agentDetail";
 
@@ -37,6 +45,7 @@ export const App = ({
   const [steerText, setSteerText] = useState<string | null>(null);
   const [armedCancel, setArmedCancel] = useState<string | null>(null);
   const [focusedAction, setFocusedAction] = useState(0);
+  const [lastAction, setLastAction] = useState<LastActionState | null>(null);
   const { exit } = useApp();
 
   useEffect(() => {
@@ -75,7 +84,10 @@ export const App = ({
       if (steerText !== null) {
         if (key.return) {
           const targetAgentId = detailAgentId ?? (openId ? state.approvals[openId]?.agentId : null);
-          if (targetAgentId) source.steer(targetAgentId, steerText);
+          if (targetAgentId) {
+            source.steer(targetAgentId, steerText);
+            setLastAction({ verb: "steered", label: state.agents[targetAgentId]?.name ?? targetAgentId });
+          }
           setSteerText(null);
         } else if (key.backspace || key.delete) {
           setSteerText((t) => (t ?? "").slice(0, -1));
@@ -88,6 +100,7 @@ export const App = ({
         const ap = editingId ? state.approvals[editingId] : undefined;
         if (ap && ap.action.kind === "command") {
           source.decide(ap.id, { action: "edit", editedAction: { ...ap.action, command: editing! } });
+          setLastAction({ verb: "edited", label: editing! });
         }
         setEditing(null);
         setEditingId(null);
@@ -166,6 +179,7 @@ export const App = ({
         if (a) {
           if (armedCancel === a.id) {
             source.cancel(a.id);
+            setLastAction({ verb: "cancelled", label: a.name });
             setArmedCancel(null);
           } else {
             setArmedCancel(a.id);
@@ -188,7 +202,11 @@ export const App = ({
         }
         if (input === "a" || input === "d") {
           const a = pending[inboxCursor];
-          if (a) source.decide(a.id, { action: input === "a" ? "approve" : "deny" });
+          if (a) {
+            const verb = input === "a" ? "approved" : "denied";
+            source.decide(a.id, { action: input === "a" ? "approve" : "deny" });
+            setLastAction({ verb, label: approvalLabel(a.action) });
+          }
         }
         return;
       }
@@ -231,6 +249,7 @@ export const App = ({
       if (key.return) {
         const action = inboxActions[focusedActionClamped];
         if (action === "approve" || action === "deny") {
+          setLastAction({ verb: action === "approve" ? "approved" : "denied", label: approvalLabel(open.action) });
           source.decide(open.id, { action });
           const idx = pending.findIndex((a) => a.id === open.id);
           const next = pending[idx + 1] ?? null;
@@ -245,6 +264,7 @@ export const App = ({
         } else if (action === "cancel") {
           if (armedCancel === inboxAgentId) {
             source.cancel(inboxAgentId);
+            setLastAction({ verb: "cancelled", label: state.agents[inboxAgentId]?.name ?? inboxAgentId });
             setArmedCancel(null);
             setOpenId(null);
             setFocusedAction(0);
@@ -300,9 +320,11 @@ export const App = ({
       const action = detailActions[focusedActionClamped];
       if (action === "approve" && focused) {
         source.decide(focused.id, { action: "approve" });
+        setLastAction({ verb: "approved", label: approvalLabel(focused.action) });
         setFocusedAction(0);
       } else if (action === "deny" && focused) {
         source.decide(focused.id, { action: "deny" });
+        setLastAction({ verb: "denied", label: approvalLabel(focused.action) });
         setFocusedAction(0);
       } else if (action === "edit" && focused && focused.action.kind === "command") {
         setEditing(focused.action.command);
@@ -312,6 +334,7 @@ export const App = ({
       } else if (action === "cancel") {
         if (armedCancel === detailAgentId) {
           source.cancel(detailAgentId);
+          setLastAction({ verb: "cancelled", label: state.agents[detailAgentId]?.name ?? detailAgentId });
           setArmedCancel(null);
         } else {
           setArmedCancel(detailAgentId);
@@ -329,7 +352,7 @@ export const App = ({
       </Box>
       <StatusBar state={state} />
       <Box marginTop={1}>
-        {mode === "fleet" && <Fleet state={state} cursor={cursor} armedCancel={armedCancel} />}
+        {mode === "fleet" && <Fleet state={state} cursor={cursor} armedCancel={armedCancel} lastAction={lastAction} />}
         {mode === "inbox" &&
           (open ? (
             <Box flexDirection="column">
@@ -346,6 +369,7 @@ export const App = ({
                   </Text>
                 </Box>
               ) : null}
+              <LastAction lastAction={lastAction} />
               <ActionBar
                 actions={inboxActions}
                 focusedIndex={focusedAction}
@@ -365,6 +389,7 @@ export const App = ({
             editedCommand={editedCommand}
             armed={armedCancel === detailAgentId}
             focusedAction={focusedAction}
+            lastAction={lastAction}
           />
         )}
       </Box>
