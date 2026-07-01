@@ -231,3 +231,109 @@ it("inbox detail: last-action line shows approved · target after approve", asyn
   unmount();
   source.dispose();
 });
+
+const makeSteerSource = (steerSpy: (agentId: string, text: string) => void): AgentSource => {
+  const subs = new Set<(e: RunEvent) => void>();
+  const emit = (e: RunEvent) => subs.forEach((cb) => cb(e));
+  return {
+    subscribe: (cb) => {
+      subs.add(cb);
+      return () => subs.delete(cb);
+    },
+    decide: () => {},
+    steer: steerSpy,
+    cancel: () => {},
+    start: () =>
+      emit({ type: "agentStatusChanged", agent: { id: "refactor", name: "refactor", task: "t", status: "waiting" } }),
+    stop: () => {},
+    dispose: () => {},
+  };
+};
+
+it("empty steer submit: does not call source.steer and does not set a steered last-action", async () => {
+  const steerSpy = vi.fn();
+  const source = makeSteerSource(steerSpy);
+
+  const { lastFrame, stdin, unmount } = render(
+    <App source={source} initialMode="agentDetail" initialDetailAgentId="refactor" />,
+  );
+  await vi.waitFor(() => expect(lastFrame() ?? "").toContain("refactor"), { timeout: 3000 });
+
+  stdin.write("\r");
+  await vi.waitFor(() => expect(lastFrame() ?? "").toContain("steer>"), { timeout: 1000 });
+
+  stdin.write("\r");
+  await vi.waitFor(() => expect(lastFrame() ?? "").not.toContain("steer>"), { timeout: 1000 });
+
+  expect(steerSpy).not.toHaveBeenCalled();
+  expect(lastFrame() ?? "").not.toContain("steered");
+
+  unmount();
+  source.dispose();
+});
+
+it("whitespace-only steer submit: does not call source.steer and does not set a steered last-action", async () => {
+  const steerSpy = vi.fn();
+  const source = makeSteerSource(steerSpy);
+
+  const { lastFrame, stdin, unmount } = render(
+    <App source={source} initialMode="agentDetail" initialDetailAgentId="refactor" />,
+  );
+  await vi.waitFor(() => expect(lastFrame() ?? "").toContain("refactor"), { timeout: 3000 });
+
+  stdin.write("\r");
+  await vi.waitFor(() => expect(lastFrame() ?? "").toContain("steer>"), { timeout: 1000 });
+
+  stdin.write("   ");
+  await vi.waitFor(() => expect(lastFrame() ?? "").toContain("steer>"), { timeout: 1000 });
+
+  stdin.write("\r");
+  await vi.waitFor(() => expect(lastFrame() ?? "").not.toContain("steer>"), { timeout: 1000 });
+
+  expect(steerSpy).not.toHaveBeenCalled();
+  expect(lastFrame() ?? "").not.toContain("steered");
+
+  unmount();
+  source.dispose();
+});
+
+it("steer submit no-ops when agent is not yet registered in state", async () => {
+  const steerSpy = vi.fn();
+  const subs = new Set<(e: RunEvent) => void>();
+  const source: AgentSource = {
+    subscribe: (cb) => {
+      subs.add(cb);
+      return () => subs.delete(cb);
+    },
+    decide: () => {},
+    steer: steerSpy,
+    cancel: () => {},
+    start: () => {},
+    stop: () => {},
+    dispose: () => {},
+  };
+
+  const { lastFrame, stdin, unmount } = render(
+    <App source={source} initialMode="agentDetail" initialDetailAgentId="ghost" />,
+  );
+
+  await vi.waitFor(() => expect(lastFrame() ?? "").toContain("ghost"), { timeout: 3000 });
+
+  stdin.write("\r");
+  await vi.waitFor(() => expect(lastFrame() ?? "").toContain("steer>"), { timeout: 1000 });
+
+  stdin.write("steer attempt on unregistered agent");
+  await vi.waitFor(
+    () => expect(lastFrame() ?? "").toContain("steer> steer attempt on unregistered agent"),
+    { timeout: 1000 },
+  );
+
+  stdin.write("\r");
+  await vi.waitFor(() => expect(lastFrame() ?? "").not.toContain("steer>"), { timeout: 1000 });
+
+  expect(steerSpy).not.toHaveBeenCalled();
+  expect(lastFrame() ?? "").not.toContain("steered");
+
+  unmount();
+  source.dispose();
+});

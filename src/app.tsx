@@ -90,7 +90,7 @@ export const App = ({
       if (steerText !== null) {
         if (key.return) {
           const targetAgentId = detailAgentId ?? (openId ? state.approvals[openId]?.agentId : null);
-          if (targetAgentId) {
+          if (targetAgentId && steerText.trim() && state.agents[targetAgentId]) {
             source.steer(targetAgentId, steerText);
             setLastAction({ verb: "steered", label: state.agents[targetAgentId]?.name ?? targetAgentId });
           }
