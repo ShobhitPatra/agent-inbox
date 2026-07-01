@@ -15,6 +15,12 @@ import type { ActionKind } from "./ui/ActionBar.js";
 import { LastAction } from "./ui/LastAction.js";
 import type { LastActionState } from "./ui/LastAction.js";
 
+const ModeHeading = ({ label }: { label: string }) => (
+  <Box marginTop={1}>
+    <Text bold>{`▸ ${label}`}</Text>
+  </Box>
+);
+
 const approvalLabel = (action: Action): string => {
   if (action.kind === "edit") return action.path;
   if (action.kind === "command") return action.command;
@@ -149,6 +155,9 @@ export const App = ({
       } else if (mode === "inbox" && openId) {
         setOpenId(null);
         setFocusedAction(0);
+      } else if (mode === "inbox") {
+        setMode("fleet");
+        setCursor(0);
       }
       return;
     }
@@ -351,6 +360,8 @@ export const App = ({
         <Text bold>agent-inbox</Text>
       </Box>
       <StatusBar state={state} />
+      {mode === "fleet" && <ModeHeading label="Fleet" />}
+      {mode === "inbox" && <ModeHeading label="Inbox" />}
       <Box marginTop={1}>
         {mode === "fleet" && <Fleet state={state} cursor={cursor} armedCancel={armedCancel} lastAction={lastAction} />}
         {mode === "inbox" &&

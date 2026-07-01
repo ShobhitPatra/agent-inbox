@@ -1,6 +1,7 @@
 import { Box, Text } from "ink";
 import type { InboxState, Approval } from "../model/types.js";
 import { pendingApprovals } from "../model/store.js";
+import { KeyHints } from "./KeyHint.js";
 
 const PALETTE = ["cyan", "green", "magenta", "yellow"] as const;
 
@@ -35,12 +36,24 @@ const WorkingIndicator = ({ state }: { state: InboxState }) => {
   );
 };
 
+const inboxFooterHints = [
+  { keyLabel: "↑/↓", action: "move" },
+  { keyLabel: "enter", action: "open" },
+  { keyLabel: "esc", action: "back" },
+  { keyLabel: "q", action: "quit" },
+];
+
 export const InboxList = ({ state, cursor }: { state: InboxState; cursor: number }) => {
   const pending = pendingApprovals(state);
   if (pending.length === 0) {
     return (
-      <Box marginY={1}>
-        <WorkingIndicator state={state} />
+      <Box flexDirection="column">
+        <Box marginY={1}>
+          <WorkingIndicator state={state} />
+        </Box>
+        <Box>
+          <KeyHints hints={inboxFooterHints} />
+        </Box>
       </Box>
     );
   }
@@ -55,6 +68,9 @@ export const InboxList = ({ state, cursor }: { state: InboxState; cursor: number
           </Text>
         </Box>
       ))}
+      <Box marginTop={1}>
+        <KeyHints hints={inboxFooterHints} />
+      </Box>
     </Box>
   );
 };
