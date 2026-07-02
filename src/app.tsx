@@ -16,6 +16,7 @@ import { ActionBar } from "./ui/ActionBar.js";
 import type { ActionKind } from "./ui/ActionBar.js";
 import { LastAction } from "./ui/LastAction.js";
 import type { LastActionState } from "./ui/LastAction.js";
+import { Help } from "./ui/Help.js";
 
 const ModeHeading = ({ label }: { label: string }) => (
   <Box marginTop={1}>
@@ -56,6 +57,7 @@ export const App = ({
   const [lastAction, setLastAction] = useState<LastActionState | null>(null);
   const [staging, setStaging] = useState(false);
   const [staged, setStaged] = useState<StagedSelection | null>(null);
+  const [showHelp, setShowHelp] = useState(false);
   const { exit } = useApp();
   const { focusNext } = useFocusManager();
 
@@ -164,6 +166,16 @@ export const App = ({
       } else if (input) {
         setEditing((e) => (e ?? "") + input);
       }
+      return;
+    }
+
+    if (input === "?") {
+      setShowHelp((v) => !v);
+      return;
+    }
+
+    if (showHelp) {
+      if (key.escape) setShowHelp(false);
       return;
     }
 
@@ -414,52 +426,58 @@ export const App = ({
         <Text bold>agent-inbox</Text>
       </Box>
       <StatusBar state={state} />
-      {mode === "fleet" && <ModeHeading label="Fleet" />}
-      {mode === "inbox" && <ModeHeading label="Inbox" />}
+      {!showHelp && mode === "fleet" && <ModeHeading label="Fleet" />}
+      {!showHelp && mode === "inbox" && <ModeHeading label="Inbox" />}
       <Box marginTop={1}>
-        {mode === "fleet" && <Fleet state={state} cursor={cursor} armedCancel={armedCancel} lastAction={lastAction} />}
-        {mode === "inbox" &&
-          (open ? (
-            <Box flexDirection="column">
-              <ApprovalDetail
-                approval={open}
-                agentName={state.agents[open.agentId]?.name ?? open.agentId}
+        {showHelp ? (
+          <Help />
+        ) : (
+          <>
+            {mode === "fleet" && <Fleet state={state} cursor={cursor} armedCancel={armedCancel} lastAction={lastAction} />}
+            {mode === "inbox" &&
+              (open ? (
+                <Box flexDirection="column">
+                  <ApprovalDetail
+                    approval={open}
+                    agentName={state.agents[open.agentId]?.name ?? open.agentId}
+                    editedCommand={editedCommand}
+                    staging={staging}
+                    onStageChange={setStaged}
+                  />
+                  {steerText !== null ? (
+                    <Box marginTop={1}>
+                      <Text color="cyan">
+                        {"steer> "}
+                        {steerText}
+                      </Text>
+                    </Box>
+                  ) : null}
+                  <LastAction lastAction={lastAction} />
+                  <ActionBar
+                    actions={inboxActions}
+                    focusedIndex={focusedAction}
+                    armed={armedCancel === open.agentId}
+                    agentName={state.agents[open.agentId]?.name ?? open.agentId}
+                  />
+                </Box>
+              ) : (
+                <InboxList state={state} cursor={inboxCursor} />
+              ))}
+            {mode === "agentDetail" && detailAgentId && (
+              <AgentDetail
+                state={state}
+                agentId={detailAgentId}
+                cursor={cursor}
+                steerText={steerText}
                 editedCommand={editedCommand}
+                armed={armedCancel === detailAgentId}
+                focusedAction={focusedAction}
+                lastAction={lastAction}
                 staging={staging}
                 onStageChange={setStaged}
               />
-              {steerText !== null ? (
-                <Box marginTop={1}>
-                  <Text color="cyan">
-                    {"steer> "}
-                    {steerText}
-                  </Text>
-                </Box>
-              ) : null}
-              <LastAction lastAction={lastAction} />
-              <ActionBar
-                actions={inboxActions}
-                focusedIndex={focusedAction}
-                armed={armedCancel === open.agentId}
-                agentName={state.agents[open.agentId]?.name ?? open.agentId}
-              />
-            </Box>
-          ) : (
-            <InboxList state={state} cursor={inboxCursor} />
-          ))}
-        {mode === "agentDetail" && detailAgentId && (
-          <AgentDetail
-            state={state}
-            agentId={detailAgentId}
-            cursor={cursor}
-            steerText={steerText}
-            editedCommand={editedCommand}
-            armed={armedCancel === detailAgentId}
-            focusedAction={focusedAction}
-            lastAction={lastAction}
-            staging={staging}
-            onStageChange={setStaged}
-          />
+            )}
+          </>
         )}
       </Box>
     </Box>
