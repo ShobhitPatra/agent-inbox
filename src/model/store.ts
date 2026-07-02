@@ -10,7 +10,12 @@ export const reduce = (s: InboxState, e: RunEvent): InboxState => {
       return { ...s, runs: { ...s.runs, [e.agentId]: [...(s.runs[e.agentId] ?? []), ...e.context] } };
     case "approvalRequested": {
       const ap: Approval = { ...e.approval, status: e.approval.status ?? "pending" };
-      return { ...s, approvals: { ...s.approvals, [ap.id]: ap }, order: [...s.order, ap.id] };
+      const alreadyPresent = ap.id in s.approvals;
+      return {
+        ...s,
+        approvals: { ...s.approvals, [ap.id]: ap },
+        order: alreadyPresent ? s.order : [...s.order, ap.id],
+      };
     }
     case "approvalResolved": {
       const ap = s.approvals[e.approvalId];

@@ -43,3 +43,22 @@ it("approvalResolved with unknown approvalId is a safe no-op", () => {
   const after = reduce(s, { type: "approvalResolved", approvalId: "nonexistent", status: "approved" });
   expect(after).toBe(before);
 });
+
+it("approvalRequested with a duplicate id updates the approval in place without duplicating the order entry", () => {
+  let s = emptyState();
+  s = reduce(s, { type: "agentStatusChanged", agent: { id: "a1", name: "d", task: "t", status: "running" } });
+  s = reduce(s, {
+    type: "approvalRequested",
+    approval: { id: "ap1", agentId: "a1", createdAt: 1, action: { kind: "command", command: "ls", cwd: "." }, context: [] },
+  });
+  expect(s.order.length).toBe(1);
+  expect(s.approvals["ap1"]?.action).toMatchObject({ command: "ls" });
+
+  s = reduce(s, {
+    type: "approvalRequested",
+    approval: { id: "ap1", agentId: "a1", createdAt: 2, action: { kind: "command", command: "pwd", cwd: "." }, context: [] },
+  });
+
+  expect(s.order.length).toBe(1);
+  expect(s.approvals["ap1"]?.action).toMatchObject({ command: "pwd" });
+});

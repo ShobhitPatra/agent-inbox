@@ -3,7 +3,8 @@ import { Box, Text, useInput, useApp, useFocusManager } from "ink";
 import type { StagedSelection } from "@assistant-ui/react-ink";
 import { reduce, emptyState, filteredFleet, filteredPending, pendingForAgent } from "./model/store.js";
 import { materializeStaged } from "./model/stage.js";
-import type { RunEvent, Action, Approval } from "./model/types.js";
+import type { RunEvent, Action, Approval, InboxState } from "./model/types.js";
+import { persistEnabled, loadState, saveState } from "./persistence.js";
 import type { AgentSource } from "./source/types.js";
 import { createFleetSource } from "./source/composite.js";
 import { createRealSource } from "./source/real.js";
@@ -36,14 +37,15 @@ export const App = ({
   source: providedSource,
   initialMode = "fleet",
   initialDetailAgentId = null,
-}: { source?: AgentSource; initialMode?: Mode; initialDetailAgentId?: string | null } = {}) => {
+  initialState: providedInitialState,
+}: { source?: AgentSource; initialMode?: Mode; initialDetailAgentId?: string | null; initialState?: InboxState } = {}) => {
   const [source] = useState(
     () => providedSource ?? (process.env["AGENT_INBOX_REAL"] ? createRealSource() : createFleetSource()),
   );
   const [state, dispatch] = useReducer(
     (s: ReturnType<typeof emptyState>, e: RunEvent) => reduce(s, e),
     undefined,
-    emptyState,
+    () => providedInitialState ?? (persistEnabled() ? (loadState() ?? emptyState()) : emptyState()),
   );
   const [mode, setMode] = useState<Mode>(initialMode);
   const [cursor, setCursor] = useState(0);
@@ -71,6 +73,10 @@ export const App = ({
       source.dispose();
     };
   }, [source]);
+
+  useEffect(() => {
+    if (persistEnabled()) saveState(state);
+  }, [state]);
 
   useEffect(() => {
     if (mode === "inbox" && openId && state.approvals[openId]?.status !== "pending") {
