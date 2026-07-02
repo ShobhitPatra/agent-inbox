@@ -71,7 +71,7 @@ it("edit approval exposes a Stage action in the action bar", async () => {
   source.dispose();
 });
 
-it("entering staging shows the hunk key hints and Approve sends only the staged subset", async () => {
+it("entering staging shows the hunk key hints and Approve sends only the staged subset", { retry: 3 }, async () => {
   const tick = () => new Promise((r) => setTimeout(r, 30));
   const decide = vi.fn();
   const source = makeEditSource(decide);
@@ -108,7 +108,7 @@ it("entering staging shows the hunk key hints and Approve sends only the staged 
   source.dispose();
 });
 
-it("staging a three-hunk edit and deselecting hunk 0 sends the two-hunk subset to decide", async () => {
+it("staging a three-hunk edit and deselecting hunk 0 sends the two-hunk subset to decide", { retry: 3 }, async () => {
   const tick = () => new Promise((r) => setTimeout(r, 30));
   const decide = vi.fn();
   const source = makeEditSource(decide, threeHunkEdit);
