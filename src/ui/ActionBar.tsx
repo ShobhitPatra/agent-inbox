@@ -1,10 +1,11 @@
 import { Box, Text } from "ink";
 import { KeyHints } from "./KeyHint.js";
 
-export type ActionKind = "approve" | "edit" | "deny" | "steer" | "cancel";
+export type ActionKind = "approve" | "stage" | "edit" | "deny" | "steer" | "cancel";
 
 const LABELS: Record<ActionKind, string> = {
   approve: "Approve",
+  stage: "Stage",
   edit: "Edit",
   deny: "Deny",
   steer: "Steer",

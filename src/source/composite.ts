@@ -46,7 +46,11 @@ const REFACTOR_SCRIPT: SimulatedScript = {
           action: {
             kind: "edit",
             path: "src/lib/validators.ts",
-            hunks: [{ oldString: "// validators", newString: "export const signupSchema = z.object({ email: z.string().email(), password: z.string().min(8) });" }],
+            hunks: [
+              { oldString: "// signupSchema", newString: "export const signupSchema = z.object({ email: z.string().email(), password: z.string().min(8) });" },
+              { oldString: "// loginSchema", newString: "export const loginSchema = z.object({ email: z.string().email(), password: z.string() });" },
+              { oldString: "// resetSchema", newString: "export const resetSchema = z.object({ token: z.string(), newPassword: z.string().min(8) });" },
+            ],
           },
           reasoning: "Centralize the validation shapes in one shared module so every route reuses a single source of truth.",
         },

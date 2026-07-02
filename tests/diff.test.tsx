@@ -43,3 +43,18 @@ it("emits one @@ header per hunk for multi-hunk edits", () => {
   const headerCount = (patch.match(/^@@/gm) ?? []).length;
   expect(headerCount).toBe(2);
 });
+
+it("emits three @@ headers for a three-hunk edit", () => {
+  const action: Extract<Action, { kind: "edit" }> = {
+    kind: "edit",
+    path: "src/lib/validators.ts",
+    hunks: [
+      { oldString: "// signupSchema", newString: "export const signupSchema = z.object({ email: z.string().email(), password: z.string().min(8) });" },
+      { oldString: "// loginSchema", newString: "export const loginSchema = z.object({ email: z.string().email(), password: z.string() });" },
+      { oldString: "// resetSchema", newString: "export const resetSchema = z.object({ token: z.string(), newPassword: z.string().min(8) });" },
+    ],
+  };
+  const patch = editToPatch(action);
+  const headerCount = (patch.match(/^@@/gm) ?? []).length;
+  expect(headerCount).toBe(3);
+});
