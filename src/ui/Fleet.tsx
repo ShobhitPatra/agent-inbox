@@ -1,6 +1,6 @@
 import { Box, Text } from "ink";
 import type { InboxState } from "../model/types.js";
-import { fleet, pendingForAgent } from "../model/store.js";
+import { filteredFleet, pendingForAgent } from "../model/store.js";
 import { KeyHints } from "./KeyHint.js";
 import { LastAction } from "./LastAction.js";
 import type { LastActionState } from "./LastAction.js";
@@ -37,23 +37,36 @@ export const Fleet = ({
   cursor,
   armedCancel,
   lastAction = null,
+  filter = "",
+  filterInput = null,
 }: {
   state: InboxState;
   cursor: number;
   armedCancel: string | null;
   lastAction?: LastActionState | null;
+  filter?: string;
+  filterInput?: string | null;
 }) => {
-  const agents = fleet(state);
+  const agents = filteredFleet(state, filter);
   if (agents.length === 0) {
     return (
       <Box marginY={1}>
-        <Text dimColor>No agents yet.</Text>
+        {filter ? <Text dimColor>no matches</Text> : <Text dimColor>No agents yet.</Text>}
       </Box>
     );
   }
   return (
     <Box flexDirection="column">
       <FleetHeader />
+      {filterInput !== null ? (
+        <Box marginBottom={1}>
+          <Text dimColor>{`filter> ${filterInput}`}</Text>
+        </Box>
+      ) : filter ? (
+        <Box marginBottom={1}>
+          <Text dimColor>{`filter: ${filter} (${agents.length} shown)`}</Text>
+        </Box>
+      ) : null}
       {agents.map((a, i) => {
         const pending = pendingForAgent(state, a.id).length;
         const armed = armedCancel === a.id;

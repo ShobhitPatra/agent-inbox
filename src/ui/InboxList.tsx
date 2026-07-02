@@ -1,6 +1,6 @@
 import { Box, Text } from "ink";
 import type { InboxState, Approval } from "../model/types.js";
-import { pendingApprovals } from "../model/store.js";
+import { filteredPending } from "../model/store.js";
 import { KeyHints } from "./KeyHint.js";
 import { agentColor } from "./palette.js";
 
@@ -36,13 +36,23 @@ const inboxFooterHints = [
   { keyLabel: "q", action: "quit" },
 ];
 
-export const InboxList = ({ state, cursor }: { state: InboxState; cursor: number }) => {
-  const pending = pendingApprovals(state);
+export const InboxList = ({
+  state,
+  cursor,
+  filter = "",
+  filterInput = null,
+}: {
+  state: InboxState;
+  cursor: number;
+  filter?: string;
+  filterInput?: string | null;
+}) => {
+  const pending = filteredPending(state, filter);
   if (pending.length === 0) {
     return (
       <Box flexDirection="column">
         <Box marginY={1}>
-          <WorkingIndicator state={state} />
+          {filter ? <Text dimColor>no matches</Text> : <WorkingIndicator state={state} />}
         </Box>
         <Box>
           <KeyHints hints={inboxFooterHints} />
@@ -52,6 +62,15 @@ export const InboxList = ({ state, cursor }: { state: InboxState; cursor: number
   }
   return (
     <Box flexDirection="column">
+      {filterInput !== null ? (
+        <Box marginBottom={1}>
+          <Text dimColor>{`filter> ${filterInput}`}</Text>
+        </Box>
+      ) : filter ? (
+        <Box marginBottom={1}>
+          <Text dimColor>{`filter: ${filter} (${pending.length} shown)`}</Text>
+        </Box>
+      ) : null}
       {pending.map((a, i) => (
         <Box key={a.id}>
           <Text color={i === cursor ? "cyan" : undefined}>{i === cursor ? "❯ " : "  "}</Text>
