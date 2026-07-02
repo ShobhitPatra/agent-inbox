@@ -1,7 +1,9 @@
 import { useEffect, useReducer, useState } from "react";
-import { Box, Text, useInput, useApp } from "ink";
+import { Box, Text, useInput, useApp, useFocusManager } from "ink";
+import type { StagedSelection } from "@assistant-ui/react-ink";
 import { reduce, emptyState, pendingApprovals, fleet, pendingForAgent } from "./model/store.js";
-import type { RunEvent, Action } from "./model/types.js";
+import { materializeStaged } from "./model/stage.js";
+import type { RunEvent, Action, Approval } from "./model/types.js";
 import type { AgentSource } from "./source/types.js";
 import { createFleetSource } from "./source/composite.js";
 import { createRealSource } from "./source/real.js";
@@ -52,7 +54,10 @@ export const App = ({
   const [armedCancel, setArmedCancel] = useState<string | null>(null);
   const [focusedAction, setFocusedAction] = useState(0);
   const [lastAction, setLastAction] = useState<LastActionState | null>(null);
+  const [staging, setStaging] = useState(false);
+  const [staged, setStaged] = useState<StagedSelection | null>(null);
   const { exit } = useApp();
+  const { focusNext } = useFocusManager();
 
   useEffect(() => {
     const off = source.subscribe(dispatch);
@@ -78,12 +83,54 @@ export const App = ({
     const isActive = ag?.status !== "done" && ag?.status !== "cancelled";
     const a: ActionKind[] = ["approve"];
     if (open.action.kind === "command") a.push("edit");
+    if (open.action.kind === "edit") a.push("stage");
     a.push("deny");
     if (isActive) a.push("steer", "cancel");
     return a;
   })();
 
+  const focusedApprovalId = (() => {
+    if (mode === "inbox") return openId;
+    if (mode === "agentDetail" && detailAgentId) {
+      const dp = pendingForAgent(state, detailAgentId);
+      return dp[Math.min(cursor, Math.max(dp.length - 1, 0))]?.id ?? null;
+    }
+    return null;
+  })();
+
+  useEffect(() => {
+    setStaged(null);
+    setStaging(false);
+  }, [focusedApprovalId]);
+
+  useEffect(() => {
+    if (staging) focusNext();
+  }, [staging, focusNext]);
+
+  const approveApproval = (ap: Approval) => {
+    if (ap.action.kind === "edit" && staged) {
+      const subset = materializeStaged(staged, ap.action);
+      if (subset.length === 0) return false;
+      if (subset.length < ap.action.hunks.length) {
+        source.decide(ap.id, { action: "edit", editedAction: { ...ap.action, hunks: subset } });
+        setLastAction({ verb: "edited", label: approvalLabel(ap.action) });
+        return true;
+      }
+    }
+    source.decide(ap.id, { action: "approve" });
+    setLastAction({ verb: "approved", label: approvalLabel(ap.action) });
+    return true;
+  };
+
   useInput((input, key) => {
+    if (staging) {
+      if (key.escape) {
+        if (staged !== null && staged.stagedHunks.length === 0) setStaged(null);
+        setStaging(false);
+      }
+      return;
+    }
+
     const textActive = editing !== null || steerText !== null;
 
     if (textActive) {
@@ -258,13 +305,19 @@ export const App = ({
       if (key.return) {
         const action = inboxActions[focusedActionClamped];
         if (action === "approve" || action === "deny") {
-          setLastAction({ verb: action === "approve" ? "approved" : "denied", label: approvalLabel(open.action) });
-          source.decide(open.id, { action });
+          if (action === "approve") {
+            if (!approveApproval(open)) return;
+          } else {
+            source.decide(open.id, { action: "deny" });
+            setLastAction({ verb: "denied", label: approvalLabel(open.action) });
+          }
           const idx = pending.findIndex((a) => a.id === open.id);
           const next = pending[idx + 1] ?? null;
           setOpenId(next?.id ?? null);
           if (next) setCursor(idx);
           setFocusedAction(0);
+        } else if (action === "stage" && open.action.kind === "edit") {
+          setStaging(true);
         } else if (action === "edit" && open.action.kind === "command") {
           setEditing(open.action.command);
           setEditingId(open.id);
@@ -297,6 +350,7 @@ export const App = ({
     if (focused) {
       detailActions.push("approve");
       if (focused.action.kind === "command") detailActions.push("edit");
+      if (focused.action.kind === "edit") detailActions.push("stage");
       detailActions.push("deny");
     }
     if (isActive) detailActions.push("steer", "cancel");
@@ -328,13 +382,13 @@ export const App = ({
     if (key.return) {
       const action = detailActions[focusedActionClamped];
       if (action === "approve" && focused) {
-        source.decide(focused.id, { action: "approve" });
-        setLastAction({ verb: "approved", label: approvalLabel(focused.action) });
-        setFocusedAction(0);
+        if (approveApproval(focused)) setFocusedAction(0);
       } else if (action === "deny" && focused) {
         source.decide(focused.id, { action: "deny" });
         setLastAction({ verb: "denied", label: approvalLabel(focused.action) });
         setFocusedAction(0);
+      } else if (action === "stage" && focused && focused.action.kind === "edit") {
+        setStaging(true);
       } else if (action === "edit" && focused && focused.action.kind === "command") {
         setEditing(focused.action.command);
         setEditingId(focused.id);
@@ -371,6 +425,8 @@ export const App = ({
                 approval={open}
                 agentName={state.agents[open.agentId]?.name ?? open.agentId}
                 editedCommand={editedCommand}
+                staging={staging}
+                onStageChange={setStaged}
               />
               {steerText !== null ? (
                 <Box marginTop={1}>
@@ -401,6 +457,8 @@ export const App = ({
             armed={armedCancel === detailAgentId}
             focusedAction={focusedAction}
             lastAction={lastAction}
+            staging={staging}
+            onStageChange={setStaged}
           />
         )}
       </Box>

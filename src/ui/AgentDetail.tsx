@@ -1,4 +1,5 @@
 import { Box, Text } from "ink";
+import type { StagedSelection } from "@assistant-ui/react-ink";
 import type { InboxState } from "../model/types.js";
 import { agentRun, pendingForAgent } from "../model/store.js";
 import { RunContext } from "./RunContext.js";
@@ -18,6 +19,8 @@ export const AgentDetail = ({
   armed,
   focusedAction,
   lastAction = null,
+  staging = false,
+  onStageChange,
 }: {
   state: InboxState;
   agentId: string;
@@ -27,6 +30,8 @@ export const AgentDetail = ({
   armed: boolean;
   focusedAction: number;
   lastAction?: LastActionState | null;
+  staging?: boolean;
+  onStageChange?: (staged: StagedSelection) => void;
 }) => {
   const agent = state.agents[agentId];
   const transcript = agentRun(state, agentId);
@@ -39,6 +44,7 @@ export const AgentDetail = ({
   if (focused) {
     actions.push("approve");
     if (focused.action.kind === "command") actions.push("edit");
+    if (focused.action.kind === "edit") actions.push("stage");
     actions.push("deny");
   }
   if (isActive) actions.push("steer", "cancel");
@@ -57,7 +63,13 @@ export const AgentDetail = ({
       ) : null}
       <Box marginTop={1} flexDirection="column">
         {focused ? (
-          <ApprovalDetail approval={focused} agentName={agent?.name ?? agentId} editedCommand={editedCommand} />
+          <ApprovalDetail
+            approval={focused}
+            agentName={agent?.name ?? agentId}
+            editedCommand={editedCommand}
+            staging={staging}
+            onStageChange={onStageChange}
+          />
         ) : (
           <Text dimColor>No pending approvals.</Text>
         )}

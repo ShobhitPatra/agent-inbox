@@ -23,7 +23,7 @@
   },
   "dependencies": {
     "@ai-sdk/openai-compatible": "^3.0.2",
-    "@assistant-ui/react-ink": "file:.vendor/assistant-ui-react-ink-0.0.31.tgz",
+    "@assistant-ui/react-ink": "file:.vendor/assistant-ui-react-ink-0.0.31-stageable.tgz",
     "@assistant-ui/react-ink-markdown": "file:.vendor/assistant-ui-react-ink-markdown-0.0.30.tgz",
     "ai": "^7.0.8",
     "assistant-cloud": "^0.1.34",
