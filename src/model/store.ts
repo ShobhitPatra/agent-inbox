@@ -1,4 +1,4 @@
-import type { InboxState, RunEvent, Approval, Agent, ContextPart } from "./types.js";
+import type { InboxState, RunEvent, Approval, Agent, Action, ContextPart } from "./types.js";
 
 export const emptyState = (): InboxState => ({ agents: {}, approvals: {}, order: [], runs: {} });
 
@@ -37,3 +37,26 @@ export const agentRun = (s: InboxState, agentId: string): ContextPart[] => s.run
 
 export const pendingForAgent = (s: InboxState, agentId: string): Approval[] =>
   pendingApprovals(s).filter((a) => a.agentId === agentId);
+
+const actionLabel = (action: Action): string => {
+  if (action.kind === "edit") return action.path;
+  if (action.kind === "command") return action.command;
+  return action.target;
+};
+
+export const filteredFleet = (s: InboxState, q: string): Agent[] => {
+  if (!q) return fleet(s);
+  const lower = q.toLowerCase();
+  return fleet(s).filter(
+    (a) => a.name.toLowerCase().includes(lower) || a.status.toLowerCase().includes(lower),
+  );
+};
+
+export const filteredPending = (s: InboxState, q: string): Approval[] => {
+  if (!q) return pendingApprovals(s);
+  const lower = q.toLowerCase();
+  return pendingApprovals(s).filter((a) => {
+    const agentName = s.agents[a.agentId]?.name ?? "";
+    return agentName.toLowerCase().includes(lower) || actionLabel(a.action).toLowerCase().includes(lower);
+  });
+};

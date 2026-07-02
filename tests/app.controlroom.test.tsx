@@ -297,6 +297,155 @@ it("whitespace-only steer submit: does not call source.steer and does not set a 
   source.dispose();
 });
 
+const makeTwoAgentSource = (): AgentSource => {
+  const subs = new Set<(e: RunEvent) => void>();
+  const emit = (e: RunEvent) => subs.forEach((cb) => cb(e));
+  return {
+    subscribe: (cb) => { subs.add(cb); return () => subs.delete(cb); },
+    decide: () => {},
+    steer: () => {},
+    cancel: () => {},
+    start: () => {
+      emit({ type: "agentStatusChanged", agent: { id: "alpha", name: "alpha-bot", task: "t", status: "running" } });
+      emit({ type: "agentStatusChanged", agent: { id: "beta", name: "beta-bot", task: "t", status: "waiting" } });
+      emit({ type: "approvalRequested", approval: { id: "ap-alpha", agentId: "alpha", createdAt: 1, action: { kind: "command", command: "alpha-cmd", cwd: "." }, context: [] } });
+      emit({ type: "approvalRequested", approval: { id: "ap-beta", agentId: "beta", createdAt: 2, action: { kind: "command", command: "beta-cmd", cwd: "." }, context: [] } });
+    },
+    stop: () => {},
+    dispose: () => {},
+  };
+};
+
+it("/ opens filter input in fleet mode", async () => {
+  const source = makeTwoAgentSource();
+  const { lastFrame, stdin, unmount } = render(<App source={source} initialMode="fleet" />);
+  await vi.waitFor(() => {
+    const f = lastFrame() ?? "";
+    expect(f).toContain("alpha-bot");
+    expect(f).toContain("beta-bot");
+  }, { timeout: 3000 });
+
+  stdin.write("/");
+  await vi.waitFor(() => expect(lastFrame()).toContain("filter>"), { timeout: 1000 });
+
+  unmount();
+  source.dispose();
+});
+
+it("typing in the filter input shows the query in fleet mode", async () => {
+  const source = makeTwoAgentSource();
+  const { lastFrame, stdin, unmount } = render(<App source={source} initialMode="fleet" />);
+  await vi.waitFor(() => expect(lastFrame()).toContain("alpha-bot"), { timeout: 3000 });
+
+  stdin.write("/");
+  await vi.waitFor(() => expect(lastFrame()).toContain("filter>"), { timeout: 1000 });
+
+  stdin.write("alp");
+  await vi.waitFor(() => expect(lastFrame()).toContain("filter> alp"), { timeout: 1000 });
+
+  unmount();
+  source.dispose();
+});
+
+it("enter applies fleet filter: matching agent visible, non-matching hidden", async () => {
+  const source = makeTwoAgentSource();
+  const { lastFrame, stdin, unmount } = render(<App source={source} initialMode="fleet" />);
+  await vi.waitFor(() => {
+    const f = lastFrame() ?? "";
+    expect(f).toContain("alpha-bot");
+    expect(f).toContain("beta-bot");
+  }, { timeout: 3000 });
+
+  stdin.write("/");
+  await vi.waitFor(() => expect(lastFrame()).toContain("filter>"), { timeout: 1000 });
+
+  stdin.write("alpha");
+  await vi.waitFor(() => expect(lastFrame()).toContain("filter> alpha"), { timeout: 1000 });
+
+  stdin.write("\r");
+
+  await vi.waitFor(() => {
+    const f = lastFrame() ?? "";
+    expect(f).toContain("alpha-bot");
+    expect(f).not.toContain("beta-bot");
+  }, { timeout: 1000 });
+
+  unmount();
+  source.dispose();
+});
+
+it("esc clears applied fleet filter: both agents visible again", async () => {
+  const source = makeTwoAgentSource();
+  const { lastFrame, stdin, unmount } = render(<App source={source} initialMode="fleet" />);
+  await vi.waitFor(() => expect(lastFrame()).toContain("alpha-bot"), { timeout: 3000 });
+
+  stdin.write("/");
+  await vi.waitFor(() => expect(lastFrame()).toContain("filter>"), { timeout: 1000 });
+  stdin.write("alpha");
+  await vi.waitFor(() => expect(lastFrame()).toContain("filter> alpha"), { timeout: 1000 });
+  stdin.write("\r");
+  await vi.waitFor(() => expect(lastFrame()).not.toContain("beta-bot"), { timeout: 1000 });
+
+  stdin.write("\x1B");
+  await vi.waitFor(() => {
+    const f = lastFrame() ?? "";
+    expect(f).toContain("alpha-bot");
+    expect(f).toContain("beta-bot");
+  }, { timeout: 1000 });
+
+  unmount();
+  source.dispose();
+});
+
+it("/ opens filter input in inbox mode and enter filters approvals", async () => {
+  const source = makeTwoAgentSource();
+  const { lastFrame, stdin, unmount } = render(<App source={source} initialMode="inbox" />);
+  await vi.waitFor(() => {
+    const f = lastFrame() ?? "";
+    expect(f).toContain("alpha-cmd");
+    expect(f).toContain("beta-cmd");
+  }, { timeout: 3000 });
+
+  stdin.write("/");
+  await vi.waitFor(() => expect(lastFrame()).toContain("filter>"), { timeout: 1000 });
+
+  stdin.write("alpha");
+  await vi.waitFor(() => expect(lastFrame()).toContain("filter> alpha"), { timeout: 1000 });
+
+  stdin.write("\r");
+
+  await vi.waitFor(() => {
+    const f = lastFrame() ?? "";
+    expect(f).toContain("alpha-cmd");
+    expect(f).not.toContain("beta-cmd");
+  }, { timeout: 1000 });
+
+  unmount();
+  source.dispose();
+});
+
+it("esc cancels the filter input without applying it", async () => {
+  const source = makeTwoAgentSource();
+  const { lastFrame, stdin, unmount } = render(<App source={source} initialMode="fleet" />);
+  await vi.waitFor(() => expect(lastFrame()).toContain("alpha-bot"), { timeout: 3000 });
+
+  stdin.write("/");
+  await vi.waitFor(() => expect(lastFrame()).toContain("filter>"), { timeout: 1000 });
+  stdin.write("alpha");
+  await vi.waitFor(() => expect(lastFrame()).toContain("filter> alpha"), { timeout: 1000 });
+
+  stdin.write("\x1B");
+  await vi.waitFor(() => {
+    const f = lastFrame() ?? "";
+    expect(f).toContain("alpha-bot");
+    expect(f).toContain("beta-bot");
+    expect(f).not.toContain("filter>");
+  }, { timeout: 1000 });
+
+  unmount();
+  source.dispose();
+});
+
 it("steer submit no-ops when agent is not yet registered in state", async () => {
   const steerSpy = vi.fn();
   const subs = new Set<(e: RunEvent) => void>();

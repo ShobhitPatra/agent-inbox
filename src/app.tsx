@@ -1,7 +1,7 @@
 import { useEffect, useReducer, useState } from "react";
 import { Box, Text, useInput, useApp, useFocusManager } from "ink";
 import type { StagedSelection } from "@assistant-ui/react-ink";
-import { reduce, emptyState, pendingApprovals, fleet, pendingForAgent } from "./model/store.js";
+import { reduce, emptyState, filteredFleet, filteredPending, pendingForAgent } from "./model/store.js";
 import { materializeStaged } from "./model/stage.js";
 import type { RunEvent, Action, Approval } from "./model/types.js";
 import type { AgentSource } from "./source/types.js";
@@ -58,6 +58,8 @@ export const App = ({
   const [staging, setStaging] = useState(false);
   const [staged, setStaged] = useState<StagedSelection | null>(null);
   const [showHelp, setShowHelp] = useState(false);
+  const [filter, setFilter] = useState("");
+  const [filterInput, setFilterInput] = useState<string | null>(null);
   const { exit } = useApp();
   const { focusNext } = useFocusManager();
 
@@ -76,8 +78,8 @@ export const App = ({
     }
   }, [mode, openId, state.approvals]);
 
-  const pending = pendingApprovals(state);
-  const inboxCursor = Math.min(cursor, Math.max(pending.length - 1, 0));
+  const filteredPend = filteredPending(state, filter);
+  const inboxCursor = Math.min(cursor, Math.max(filteredPend.length - 1, 0));
   const open = openId ? state.approvals[openId] : undefined;
   const inboxActions: ActionKind[] = (() => {
     if (!open) return [];
@@ -109,6 +111,10 @@ export const App = ({
     if (staging) focusNext();
   }, [staging, focusNext]);
 
+  useEffect(() => {
+    setCursor(0);
+  }, [filter]);
+
   const approveApproval = (ap: Approval) => {
     if (ap.action.kind === "edit" && staged) {
       const subset = materializeStaged(staged, ap.action);
@@ -133,9 +139,24 @@ export const App = ({
       return;
     }
 
-    const textActive = editing !== null || steerText !== null;
+    const textActive = editing !== null || steerText !== null || filterInput !== null;
 
     if (textActive) {
+      if (filterInput !== null) {
+        if (key.escape) {
+          setFilterInput(null);
+          return;
+        }
+        if (key.return) {
+          setFilter(filterInput);
+          setFilterInput(null);
+        } else if (key.backspace || key.delete) {
+          setFilterInput((t) => (t ?? "").slice(0, -1));
+        } else if (input) {
+          setFilterInput((t) => (t ?? "") + input);
+        }
+        return;
+      }
       if (steerText !== null) {
         if (key.return) {
           const targetAgentId = detailAgentId ?? (openId ? state.approvals[openId]?.agentId : null);
@@ -204,8 +225,17 @@ export const App = ({
       setArmedCancel(null);
       return;
     }
+    if (input === "/" && !openId && (mode === "fleet" || mode === "inbox")) {
+      setFilterInput(filter);
+      return;
+    }
     if (key.escape) {
       setArmedCancel(null);
+      if (filter && (mode === "fleet" || mode === "inbox")) {
+        setFilter("");
+        setCursor(0);
+        return;
+      }
       if (mode === "agentDetail") {
         setMode("fleet");
         setCursor(0);
@@ -222,7 +252,7 @@ export const App = ({
     }
 
     if (mode === "fleet") {
-      const agents = fleet(state);
+      const agents = filteredFleet(state, filter);
       const focusIndex = Math.min(cursor, Math.max(agents.length - 1, 0));
       if (key.downArrow || input === "j") {
         setCursor(Math.min(focusIndex + 1, Math.max(agents.length - 1, 0)));
@@ -259,17 +289,17 @@ export const App = ({
 
     if (mode === "inbox") {
       if (!openId) {
-        if (key.downArrow || input === "j") setCursor(Math.min(inboxCursor + 1, Math.max(pending.length - 1, 0)));
+        if (key.downArrow || input === "j") setCursor(Math.min(inboxCursor + 1, Math.max(filteredPend.length - 1, 0)));
         if (key.upArrow || input === "k") setCursor(Math.max(inboxCursor - 1, 0));
         if (key.return) {
-          const a = pending[inboxCursor];
+          const a = filteredPend[inboxCursor];
           if (a) {
             setOpenId(a.id);
             setFocusedAction(0);
           }
         }
         if (input === "a" || input === "d") {
-          const a = pending[inboxCursor];
+          const a = filteredPend[inboxCursor];
           if (a) {
             const verb = input === "a" ? "approved" : "denied";
             source.decide(a.id, { action: input === "a" ? "approve" : "deny" });
@@ -285,20 +315,20 @@ export const App = ({
       const focusedActionClamped = Math.min(focusedAction, Math.max(inboxActions.length - 1, 0));
 
       if (key.upArrow || input === "k") {
-        const idx = pending.findIndex((a) => a.id === openId);
+        const idx = filteredPend.findIndex((a) => a.id === openId);
         const nextIdx = Math.max(idx - 1, 0);
         if (nextIdx !== idx) {
-          setOpenId(pending[nextIdx]!.id);
+          setOpenId(filteredPend[nextIdx]!.id);
           setCursor(nextIdx);
           setFocusedAction(0);
         }
         return;
       }
       if (key.downArrow || input === "j") {
-        const idx = pending.findIndex((a) => a.id === openId);
-        const nextIdx = Math.min(idx + 1, pending.length - 1);
+        const idx = filteredPend.findIndex((a) => a.id === openId);
+        const nextIdx = Math.min(idx + 1, filteredPend.length - 1);
         if (nextIdx !== idx) {
-          setOpenId(pending[nextIdx]!.id);
+          setOpenId(filteredPend[nextIdx]!.id);
           setCursor(nextIdx);
           setFocusedAction(0);
         }
@@ -323,8 +353,8 @@ export const App = ({
             source.decide(open.id, { action: "deny" });
             setLastAction({ verb: "denied", label: approvalLabel(open.action) });
           }
-          const idx = pending.findIndex((a) => a.id === open.id);
-          const next = pending[idx + 1] ?? null;
+          const idx = filteredPend.findIndex((a) => a.id === open.id);
+          const next = filteredPend[idx + 1] ?? null;
           setOpenId(next?.id ?? null);
           if (next) setCursor(idx);
           setFocusedAction(0);
@@ -433,7 +463,7 @@ export const App = ({
           <Help />
         ) : (
           <>
-            {mode === "fleet" && <Fleet state={state} cursor={cursor} armedCancel={armedCancel} lastAction={lastAction} />}
+            {mode === "fleet" && <Fleet state={state} cursor={cursor} armedCancel={armedCancel} lastAction={lastAction} filter={filter} filterInput={filterInput} />}
             {mode === "inbox" &&
               (open ? (
                 <Box flexDirection="column">
@@ -461,7 +491,7 @@ export const App = ({
                   />
                 </Box>
               ) : (
-                <InboxList state={state} cursor={inboxCursor} />
+                <InboxList state={state} cursor={inboxCursor} filter={filter} filterInput={filterInput} />
               ))}
             {mode === "agentDetail" && detailAgentId && (
               <AgentDetail

@@ -1,5 +1,5 @@
 import { it, expect } from "vitest";
-import { reduce, emptyState, fleet, agentRun, pendingForAgent } from "../src/model/store.js";
+import { reduce, emptyState, fleet, agentRun, pendingForAgent, filteredFleet, filteredPending } from "../src/model/store.js";
 
 const seeded = () => {
   let s = emptyState();
@@ -27,4 +27,51 @@ it("pendingForAgent returns only that agent's still-pending approvals", () => {
   const s = seeded();
   expect(pendingForAgent(s, "a").map((p) => p.id)).toEqual(["a-2"]);
   expect(pendingForAgent(s, "b").map((p) => p.id)).toEqual(["b-1"]);
+});
+
+it("filteredFleet returns all agents when query is empty", () => {
+  expect(filteredFleet(seeded(), "").map((a) => a.id)).toEqual(["a", "b"]);
+});
+
+it("filteredFleet matches by name case-insensitively", () => {
+  expect(filteredFleet(seeded(), "A").map((a) => a.id)).toEqual(["a"]);
+  expect(filteredFleet(seeded(), "a").map((a) => a.id)).toEqual(["a"]);
+});
+
+it("filteredFleet returns empty when no match", () => {
+  expect(filteredFleet(seeded(), "zzz")).toEqual([]);
+});
+
+it("filteredFleet matches by status", () => {
+  expect(filteredFleet(seeded(), "running").map((a) => a.id)).toEqual(["b"]);
+  expect(filteredFleet(seeded(), "waiting").map((a) => a.id)).toEqual(["a"]);
+});
+
+it("filteredPending returns all pending when query is empty", () => {
+  expect(filteredPending(seeded(), "").map((a) => a.id)).toEqual(["b-1", "a-2"]);
+});
+
+it("filteredPending matches by agent name case-insensitively", () => {
+  expect(filteredPending(seeded(), "B").map((a) => a.id)).toEqual(["b-1"]);
+  expect(filteredPending(seeded(), "b").map((a) => a.id)).toEqual(["b-1"]);
+});
+
+it("filteredPending returns empty when no match", () => {
+  expect(filteredPending(seeded(), "zzz")).toEqual([]);
+});
+
+it("filteredPending matches by action label case-insensitively", () => {
+  let s = emptyState();
+  s = reduce(s, { type: "agentStatusChanged", agent: { id: "x", name: "xbot", task: "t", status: "running" } });
+  s = reduce(s, { type: "agentStatusChanged", agent: { id: "y", name: "ybot", task: "t", status: "running" } });
+  s = reduce(s, {
+    type: "approvalRequested",
+    approval: { id: "x-1", agentId: "x", createdAt: 1, action: { kind: "edit", path: "/src/config.ts", hunks: [] }, context: [] },
+  });
+  s = reduce(s, {
+    type: "approvalRequested",
+    approval: { id: "y-1", agentId: "y", createdAt: 2, action: { kind: "command", command: "npm run build", cwd: "." }, context: [] },
+  });
+  expect(filteredPending(s, "config").map((a) => a.id)).toEqual(["x-1"]);
+  expect(filteredPending(s, "NPM").map((a) => a.id)).toEqual(["y-1"]);
 });
